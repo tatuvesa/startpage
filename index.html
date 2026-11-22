@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="A keyboard-first browser startpage.">
+  <title>startpage</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23a99bff'/%3E%3Cstop offset='1' stop-color='%235b9cff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Ccircle cx='14.5' cy='14.5' r='6' fill='none' stroke='white' stroke-width='2.6'/%3E%3Cpath d='m19 19 5 5' stroke='white' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@200..700&family=Geist+Mono:wght@400..600&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <!-- Background layer. In "transparent" mode it paints nothing, so the page stays see-through. -->
+  <div class="backdrop" id="backdrop" aria-hidden="true">
+    <div class="aurora"><span></span><span></span><span></span><span></span></div>
+    <img class="bg-image" id="bg-image" alt="" referrerpolicy="no-referrer" decoding="async">
+    <div class="grain"></div>
+    <div class="dim"></div>
+  </div>
+
+  <main class="shell" id="shell">
+    <header class="hero" id="hero">
+      <div class="clock" id="clock" aria-hidden="true"></div>
+      <p class="meta" id="meta">
+        <span id="greeting"></span>
+        <span class="meta-sep" id="date-sep" aria-hidden="true"></span>
+        <time id="date"></time>
+        <span class="weather" id="weather" hidden>
+          <span class="meta-sep" aria-hidden="true"></span>
+          <span class="weather-icon" id="weather-icon" aria-hidden="true"></span>
+          <span id="weather-text"></span>
+        </span>
+      </p>
+    </header>
+
+    <form class="search" id="search-form" role="search" autocomplete="off">
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+        <label class="sr-only" for="q">Search, bookmark key or address</label>
+        <input id="q" type="text" placeholder="Search, or type a bookmark key…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" role="combobox" aria-expanded="false" aria-controls="suggestions" aria-autocomplete="list" autofocus>
+        <span class="search-hint" id="search-hint" aria-hidden="true"><span id="hint-text">Search</span><kbd>↵</kbd></span>
+      </div>
+      <ul class="suggestions" id="suggestions" role="listbox" aria-label="Suggestions" hidden></ul>
+    </form>
+
+    <nav class="grid" id="grid" aria-label="Bookmarks"></nav>
+    <p class="sr-only" id="status" role="status" aria-live="polite"></p>
+  </main>
+
+  <footer class="hints" id="hints" aria-hidden="true">
+    <span><kbd>type</kbd> anywhere to search</span>
+    <span><kbd>key</kbd><kbd>↵</kbd> opens a bookmark</span>
+    <span><kbd>Ctrl</kbd><kbd>↵</kbd> new tab</span>
+    <span><kbd>?</kbd> forces a search</span>
+    <span><kbd>Ctrl</kbd><kbd>,</kbd> settings</span>
+  </footer>
+
+  <button class="fab" id="open-settings" type="button" aria-label="Open settings" aria-haspopup="dialog" title="Settings (Ctrl+,)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h4m4 0h8M4 17h10m4 0h2"/><circle cx="10" cy="7" r="2.2"/><circle cx="16" cy="17" r="2.2"/></svg>
+  </button>
+
+  <dialog class="panel" id="settings" aria-labelledby="settings-title">
+    <div class="panel-inner">
+      <header class="panel-head">
+        <h2 id="settings-title">Settings</h2>
+        <span class="saved" id="saved-badge" aria-live="polite"></span>
+        <button class="icon-btn" id="close-settings" type="button" aria-label="Close settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </header>
+
+      <div class="tabs" role="tablist" aria-label="Settings sections">
+        <button role="tab" type="button" id="tab-search" aria-controls="pane-search" aria-selected="true">Search</button>
+        <button role="tab" type="button" id="tab-look" aria-controls="pane-look" aria-selected="false" tabindex="-1">Look</button>
+        <button role="tab" type="button" id="tab-widgets" aria-controls="pane-widgets" aria-selected="false" tabindex="-1">Widgets</button>
+        <button role="tab" type="button" id="tab-bookmarks" aria-controls="pane-bookmarks" aria-selected="false" tabindex="-1">Bookmarks</button>
+        <button role="tab" type="button" id="tab-data" aria-controls="pane-data" aria-selected="false" tabindex="-1">Data</button>
+        <span class="tab-indicator" id="tab-indicator" aria-hidden="true"></span>
+      </div>
+
+      <div class="panel-body">
+        <!-- SEARCH -->
+        <section class="pane" role="tabpanel" id="pane-search" aria-labelledby="tab-search">
+          <div class="field">
+            <label class="field-label" for="search-template">Search address</label>
+            <input id="search-template" type="text" inputmode="url" spellcheck="false" autocapitalize="off" data-pref="search.template">
+            <p class="field-help" id="template-help">Put <code>{query}</code> where the search terms go.</p>
+          </div>
+          <div class="chips" aria-label="Search presets">
+            <button type="button" class="chip" data-engine="google">Google (no AI)</button>
+            <button type="button" class="chip" data-engine="duckduckgo">DuckDuckGo</button>
+            <button type="button" class="chip" data-engine="startpage">Startpage</button>
+          </div>
+
+          <div class="rows">
+            <label class="row">
+              <span class="row-text"><span class="row-title">Open in a new tab</span><span class="row-desc">Ctrl/Shift + Enter always opens a new tab.</span></span>
+              <input type="checkbox" class="switch" data-pref="search.newTab">
+            </label>
+            <label class="row">
+              <span class="row-text"><span class="row-title">Suggestions</span><span class="row-desc">Matching bookmarks and recent searches while you type.</span></span>
+              <input type="checkbox" class="switch" data-pref="search.suggest">
+            </label>
+            <label class="row">
+              <span class="row-text"><span class="row-title">Remember searches</span><span class="row-desc">Kept in this browser only.</span></span>
+              <input type="checkbox" class="switch" data-pref="search.history">
+            </label>
+          </div>
+          <button type="button" class="btn ghost" id="clear-history">Clear search history</button>
+
+          <div class="tip">
+            <strong>Tip:</strong> bangs work on engines that support them (DuckDuckGo, SearXNG…), e.g. <code>!yt lofi</code> or <code>!gh startpage</code>.
+            Start with <code>?</code> to force a search for something that looks like an address, e.g. <code>?node.js</code>.
+          </div>
+        </section>
+
+        <!-- LOOK -->
+        <section class="pane" role="tabpanel" id="pane-look" aria-labelledby="tab-look" hidden>
+          <div class="field">
+            <span class="field-label" id="bg-label">Background</span>
+            <div class="segmented" role="radiogroup" aria-labelledby="bg-label">
+              <label><input type="radio" name="bg" value="transparent" data-pref="look.background"><span>Transparent</span></label>
+              <label><input type="radio" name="bg" value="aurora" data-pref="look.background"><span>Aurora</span></label>
+              <label><input type="radio" name="bg" value="color" data-pref="look.background"><span>Color</span></label>
+              <label><input type="radio" name="bg" value="image" data-pref="look.background"><span>Image</span></label>
+            </div>
+            <p class="field-help" data-show="look.background=transparent">The page draws no background, so your desktop shows through in browsers that support it (Zen with <code>browser.tabs.allow_transparent_browser</code>). Other browsers show their normal dark page color instead.</p>
+          </div>
+
+          <div class="field" data-show="look.background=color">
+            <label class="field-label" for="bg-color">Color</label>
+            <input id="bg-color" type="color" data-pref="look.color">
+          </div>
+
+          <div data-show="look.background=image">
+            <div class="field">
+              <label class="field-label" for="bg-url">Image address</label>
+              <input id="bg-url" type="text" inputmode="url" spellcheck="false" placeholder="https://example.com/wallpaper.jpg" data-pref="look.image">
+            </div>
+            <div class="field range">
+              <label class="field-label" for="bg-blur">Image blur <output data-out="look.imageBlur" data-unit=" px"></output></label>
+              <input id="bg-blur" type="range" min="0" max="40" data-pref="look.imageBlur">
+            </div>
+          </div>
+
+          <div class="field range">
+            <label class="field-label" for="dim">Darken <output data-out="look.dim" data-unit="%"></output></label>
+            <input id="dim" type="range" min="0" max="85" data-pref="look.dim">
+          </div>
+
+          <div class="field">
+            <span class="field-label" id="accent-label">Accent</span>
+            <div class="swatches" role="group" aria-labelledby="accent-label">
+              <button type="button" class="swatch" data-accent="#8b7bff" style="--c:#8b7bff" aria-label="Violet"></button>
+              <button type="button" class="swatch" data-accent="#5b9cff" style="--c:#5b9cff" aria-label="Blue"></button>
+              <button type="button" class="swatch" data-accent="#3fd0e0" style="--c:#3fd0e0" aria-label="Cyan"></button>
+              <button type="button" class="swatch" data-accent="#4ade80" style="--c:#4ade80" aria-label="Green"></button>
+              <button type="button" class="swatch" data-accent="#fbbf24" style="--c:#fbbf24" aria-label="Amber"></button>
+              <button type="button" class="swatch" data-accent="#fb7185" style="--c:#fb7185" aria-label="Rose"></button>
+              <button type="button" class="swatch" data-accent="#e7e5e1" style="--c:#e7e5e1" aria-label="Mono"></button>
+              <label class="swatch custom" title="Custom color"><span class="sr-only">Custom accent color</span><input type="color" data-pref="look.accent"></label>
+            </div>
+          </div>
+
+          <div class="field range">
+            <label class="field-label" for="glass">Card glass <output data-out="look.glass" data-unit="%"></output></label>
+            <input id="glass" type="range" min="0" max="30" data-pref="look.glass">
+          </div>
+
+          <div class="field two">
+            <div>
+              <label class="field-label" for="columns">Columns</label>
+              <select id="columns" data-pref="look.columns">
+                <option value="auto">Auto</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="icons">Site icons</label>
+              <select id="icons" data-pref="look.icons">
+                <option value="site">From each site</option>
+                <option value="duckduckgo">Via DuckDuckGo</option>
+                <option value="off">Letters only</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="rows">
+            <label class="row">
+              <span class="row-text"><span class="row-title">Show bookmark keys</span></span>
+              <input type="checkbox" class="switch" data-pref="look.keys">
+            </label>
+            <label class="row">
+              <span class="row-text"><span class="row-title">Keyboard hints</span><span class="row-desc">The shortcut bar at the bottom.</span></span>
+              <input type="checkbox" class="switch" data-pref="look.hints">
+            </label>
+            <label class="row">
+              <span class="row-text"><span class="row-title">Motion</span><span class="row-desc">Animations, spotlight and aurora movement.</span></span>
+              <input type="checkbox" class="switch" data-pref="look.motion">
+            </label>
+          </div>
+        </section>
+
+        <!-- WIDGETS -->
+        <section class="pane" role="tabpanel" id="pane-widgets" aria-labelledby="tab-widgets" hidden>
+          <h3 class="pane-title">Clock</h3>
+          <div class="rows">
+            <label class="row"><span class="row-text"><span class="row-title">Show clock</span></span><input type="checkbox" class="switch" data-pref="clock.show"></label>
+            <label class="row" data-show="clock.show=true"><span class="row-text"><span class="row-title">Seconds</span></span><input type="checkbox" class="switch" data-pref="clock.seconds"></label>
+            <label class="row" data-show="clock.show=true"><span class="row-text"><span class="row-title">12-hour time</span></span><input type="checkbox" class="switch" data-pref="clock.h12"></label>
+            <label class="row"><span class="row-text"><span class="row-title">Date</span></span><input type="checkbox" class="switch" data-pref="clock.date"></label>
+            <label class="row"><span class="row-text"><span class="row-title">Greeting</span></span><input type="checkbox" class="switch" data-pref="clock.greeting"></label>
+          </div>
+          <div class="field" data-show="clock.greeting=true">
+            <label class="field-label" for="name">Your name</label>
+            <input id="name" type="text" maxlength="32" placeholder="optional" data-pref="clock.name">
+          </div>
+
+          <h3 class="pane-title">Weather</h3>
+          <div class="field two">
+            <div>
+              <label class="field-label" for="city">City</label>
+              <input id="city" type="text" maxlength="80" placeholder="e.g. Helsinki" data-pref="weather.city">
+            </div>
+            <div>
+              <label class="field-label" for="units">Units</label>
+              <select id="units" data-pref="weather.units">
+                <option value="celsius">°C</option>
+                <option value="fahrenheit">°F</option>
+              </select>
+            </div>
+          </div>
+          <p class="field-help" id="weather-status">Leave empty to hide the weather. Data from Open-Meteo (free, no account), refreshed every 30 minutes.</p>
+        </section>
+
+        <!-- BOOKMARKS -->
+        <section class="pane" role="tabpanel" id="pane-bookmarks" aria-labelledby="tab-bookmarks" hidden>
+          <p class="field-help">The <strong>key</strong> is what you type, then press Enter. Drag <span class="inline-grip" aria-hidden="true">⠿</span> to reorder, or focus it and use the arrow keys.</p>
+          <div class="editor" id="editor"></div>
+          <button type="button" class="btn" id="add-bookmark">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Add bookmark
+          </button>
+        </section>
+
+        <!-- DATA -->
+        <section class="pane" role="tabpanel" id="pane-data" aria-labelledby="tab-data" hidden>
+          <p class="field-help">Settings are saved automatically in this browser. Export a backup to move them to another browser or machine.</p>
+          <div class="stack">
+            <button type="button" class="btn" id="export">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg> Export backup
+            </button>
+            <label class="btn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m0 0L8 8m4-4 4 4M5 19h14"/></svg> Import backup
+              <input type="file" id="import" accept="application/json,.json" class="sr-only">
+            </label>
+            <button type="button" class="btn danger" id="reset">Reset everything</button>
+          </div>
+          <p class="field-help" id="data-status" role="status"></p>
+        </section>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- First visit: pick a search engine. -->
+  <dialog class="panel welcome" id="welcome" aria-labelledby="welcome-title" aria-describedby="welcome-desc">
+    <form class="welcome-inner" id="welcome-form" novalidate>
+      <h2 id="welcome-title">Pick a search engine</h2>
+      <p class="welcome-desc" id="welcome-desc">Searches from this page go here. You can change it any time in Settings.</p>
+      <div class="engines" role="radiogroup" aria-labelledby="welcome-title">
+        <label class="engine"><input type="radio" name="engine" value="google"><span class="engine-name">Google</span><span class="engine-sub">Web results, no AI overview</span></label>
+        <label class="engine"><input type="radio" name="engine" value="duckduckgo"><span class="engine-name">DuckDuckGo</span><span class="engine-sub">Private, supports !bangs</span></label>
+        <label class="engine"><input type="radio" name="engine" value="startpage"><span class="engine-name">Startpage</span><span class="engine-sub">Google results, privately</span></label>
+        <label class="engine"><input type="radio" name="engine" value="custom"><span class="engine-name">Custom</span><span class="engine-sub">SearXNG or any search URL</span></label>
+      </div>
+      <div class="field" id="welcome-custom" hidden>
+        <label class="field-label" for="welcome-template">Search address</label>
+        <input id="welcome-template" type="text" inputmode="url" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="https://searx.example.org/search?q={query}">
+        <p class="field-help" id="welcome-help">Put <code>{query}</code> where the search terms go.</p>
+      </div>
+      <button class="btn primary" type="submit" id="welcome-save" disabled>Start searching</button>
+    </form>
+  </dialog>
+
+  <noscript><p class="noscript">Enable JavaScript to use this startpage.</p></noscript>
+</body>
+</html>
